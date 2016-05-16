@@ -2,7 +2,7 @@ extern crate ethabi;
 
 mod dao;
 mod error;
-mod function;
+pub mod function;
 mod proposal;
 mod util;
 

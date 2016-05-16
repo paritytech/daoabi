@@ -29,6 +29,7 @@ impl DAO {
 		NumberOfProposals::new(self.function("numberOfProposals"))
 	}
 
+	/// Actual balance available (not locked in proposals).
 	pub fn actual_balance(&self) -> ActualBalance {
 		ActualBalance::new(self.function("actualBalance"))
 	}

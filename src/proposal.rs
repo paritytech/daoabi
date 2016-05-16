@@ -1,8 +1,9 @@
 use ethabi::{Address, Uint};
 
-/// A proposal with `newCurator == false` represents a transaction
-/// to be issued by this DAO
-/// A proposal with `newCurator == true` represents a DAO split
+/// A proposal.
+/// 
+/// With `newCurator == false` represents a transaction to be issued by this DAO
+/// A proposal with `newCurator == true` represents a DAO split.
 pub struct Proposal {
 	/// The address where the `amount` will go to if the proposal is accepted
 	/// or if `newCurator` is true, the proposed Curator of

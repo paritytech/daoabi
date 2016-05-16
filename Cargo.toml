@@ -1,0 +1,10 @@
+[package]
+name = "daoabi"
+version = "0.1.0"
+authors = ["debris <marek.kotewicz@gmail.com>"]
+
+[dependencies]
+ethabi = { git = "https://github.com/ethcore/ethabi.git" }
+
+[dev-dependencies]
+rustc-serialize = "0.3"

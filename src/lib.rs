@@ -2,7 +2,9 @@ extern crate ethabi;
 
 mod dao;
 mod error;
+mod function;
 mod proposal;
+mod util;
 
 pub use dao::DAO;
 pub use error::Error;

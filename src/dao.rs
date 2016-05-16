@@ -1,56 +1,41 @@
-use std::ptr;
-use ethabi::{Contract, Interface, Uint, Token};
-use super::{Error, Proposal};
+use ethabi::{Contract, Interface, Function};
+use function::{Proposals, NumberOfProposals, ActualBalance, Vote};
 
-fn to_bytes32(data: Vec<u8>) -> [u8; 32] {
-	if data.len() != 32 {
-		panic!("expected bytes32");
-	}
-	let mut result = [0u8; 32];
-	unsafe {
-		ptr::copy(data.as_ptr(), result.as_mut_ptr(), 32);
-	}
-	result
-}
-
+/// DAO contract.
 pub struct DAO {
 	contract: Contract,
 }
 
 impl DAO {
+	/// Creates new abi instance.
 	pub fn new() -> Self {
 		DAO {
 			contract: Contract::new(Interface::load(include_bytes!("./dao.json")).expect("Invalid abi.")),
 		}
 	}
 
-	pub fn proposal(&self, id: Uint) -> Vec<u8> {
-		let func = self.contract.function("proposals".to_owned()).expect("");
-		let params = vec![Token::Uint(id)];
-		func.encode_call(params).expect("expected param is Uint: params = vec![Token::Uint]: qed")
+	/// Private function used to encode params expected to be found in abi.json with params known to be valid.
+	fn function(&self, name: &str) -> Function {
+		self.contract.function(name.to_owned()).expect("")
 	}
 
-	pub fn proposal_output(&self, data: Vec<u8>) -> Result<Proposal, Error> {
-		let func = self.contract.function("proposals".to_owned()).expect("");
-		let tokens = try!(func.decode_output(data));
-		let mut i = tokens.into_iter();
+	/// Proposals to spend the DAO's ether or to choose a new Curator.
+	pub fn proposals(&self) -> Proposals {
+		Proposals::new(self.function("proposals"))
+	}
 
-		let proposal = Proposal {
-			recipient: i.next().and_then(Token::to_address).unwrap(),
-			amount: i.next().and_then(Token::to_uint).unwrap(),
-			description: i.next().and_then(Token::to_string).unwrap(),
-			voting_deadline: i.next().and_then(Token::to_uint).unwrap(),
-			open: i.next().and_then(Token::to_bool).unwrap(),
-			proposal_passed: i.next().and_then(Token::to_bool).unwrap(),
-			proposal_hash: i.next().and_then(Token::to_fixed_bytes).map(to_bytes32).unwrap(),
-			proposal_deposit: i.next().and_then(Token::to_uint).unwrap(),
-			new_curator: i.next().and_then(Token::to_bool).unwrap(),
-			yea: i.next().and_then(Token::to_uint).unwrap(),
-			nay: i.next().and_then(Token::to_uint).unwrap(),
-			creator: i.next().and_then(Token::to_address).unwrap(),
-		};
+	/// Returns total number of proposals ever created.
+	pub fn number_of_proposals(&self) -> NumberOfProposals {
+		NumberOfProposals::new(self.function("numberOfProposals"))
+	}
 
-		Ok(proposal)
+	pub fn actual_balance(&self) -> ActualBalance {
+		ActualBalance::new(self.function("actualBalance"))
+	}
+
+	/// Vote on proposal. Returns the vote ID.
+	pub fn vote(&self) -> Vote {
+		Vote::new(self.function("vote"))
 	}
 }
 
@@ -58,13 +43,66 @@ impl DAO {
 mod test {
 	extern crate rustc_serialize;
 	use self::rustc_serialize::hex::FromHex;
+	use ethabi::Uint;
+	use ethabi::token::TokenFromHex;
 	use super::DAO;
 
 	#[test]
 	fn test_proposal() {
-		let expected = "013cf08b1111111111111111111111111111111111111111111111111111111111111111".from_hex().unwrap();
+		let id: Uint = "0000000000000000000000000000000000000000000000000000000000000002".token_from_hex().unwrap();
+		let expected = "013cf08b0000000000000000000000000000000000000000000000000000000000000002".from_hex().unwrap();
 		let dao = DAO::new();
-		let proposal_call = dao.proposal([0x11u8; 32]);
-		assert_eq!(proposal_call, expected);
+		let call = dao.proposals().encode(id);
+		assert_eq!(call, expected);
+	}
+
+	#[test]
+	fn test_number_of_proposals() {
+		let expected = "8d7af473".from_hex().unwrap();
+		let dao = DAO::new();
+		let call = dao.number_of_proposals().encode();
+		assert_eq!(call, expected);
+	}
+
+	#[test]
+	fn test_number_of_proposals_output() {
+		let expected: Uint = "0000000000000000000000000000000000000000000000000000000000000021".token_from_hex().unwrap();
+		let dao = DAO::new();
+		let decoded = dao.number_of_proposals().decode("0000000000000000000000000000000000000000000000000000000000000021".from_hex().unwrap()).unwrap();
+		assert_eq!(decoded, expected);
+	}
+
+	#[test]
+	fn test_actual_balance() {
+		let expected = "39d1f908".from_hex().unwrap();
+		let dao = DAO::new();
+		let call = dao.actual_balance().encode();
+		assert_eq!(call, expected);
+	}
+
+	#[test]
+	fn test_actual_balance_output() {
+		let expected: Uint = "0000000000000000000000000000000000000000000000000000000000000021".token_from_hex().unwrap();
+		let dao = DAO::new();
+		let decoded = dao.actual_balance().decode("0000000000000000000000000000000000000000000000000000000000000021".from_hex().unwrap()).unwrap();
+		assert_eq!(decoded, expected);
+	}
+
+	#[test]
+	fn test_vote() {
+		let id: Uint = "0000000000000000000000000000000000000000000000000000000000000002".token_from_hex().unwrap();
+		let vote = true;
+		let expected = "c9d27afe00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000001".from_hex().unwrap();
+		let dao = DAO::new();
+		let call = dao.vote().encode(id, vote);
+		assert_eq!(call, expected);
+	}
+
+	#[test]
+	fn test_vote_output() {
+		let expected: Uint = "0000000000000000000000000000000000000000000000000000000000000021".token_from_hex().unwrap();
+		let dao = DAO::new();
+		let decoded = dao.vote().decode("0000000000000000000000000000000000000000000000000000000000000021".from_hex().unwrap()).unwrap();
+		assert_eq!(decoded, expected);
 	}
 }
